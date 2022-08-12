@@ -3,8 +3,8 @@
 namespace CodeTrace;
 
 use GuzzleHttp\ClientInterface;
+use Monolog\Formatter\FormatterInterface;
 use Monolog\Handler\AbstractProcessingHandler;
-use Monolog\LogRecord;
 
 class CodeTraceHandler extends AbstractProcessingHandler
 {
@@ -14,25 +14,19 @@ class CodeTraceHandler extends AbstractProcessingHandler
     {
         $this->client = $client;
     }
+
+    protected function getDefaultFormatter(): FormatterInterface
+    {
+        return new CodeTraceFormatter();
+    }
+
     /**
      * @inheritDoc
      */
-    protected function write(LogRecord $record): void
+    protected function write(array $record): void
     {
-        if (isset($record->context['exception']) && $record->context['exception'] instanceof \Throwable) {
-            $context['exception'] = $record->context['exception']->getTraceAsString();
-        } else {
-            $context = $record->context;
-        }
-
-        $json = [
-            'level' => strtolower($record->level->getName()),
-            'message' => $record->message,
-            'context' => $context,
-        ];
-
         $this->client->request('POST', 'reports', [
-            'json' => $json,
+            'json' => $this->formatter->format($record),
         ]);
     }
 }
